@@ -222,11 +222,9 @@ const FeedbackVisual = ({ type }: { type: 'best' | 'ok' | 'poor' }) => {
         <img 
           src={FEEDBACK_IMAGES[type]} 
           alt="Feedback" 
-          className="w-full h-auto max-h-[70vh] object-contain drop-shadow-[0_-20px_60px_rgba(0,0,0,0.3)] opacity-0 transition-opacity duration-300"
+          className="w-full h-auto max-h-[70vh] object-contain drop-shadow-[0_-20px_60px_rgba(0,0,0,0.3)]"
+          loading="eager"
           referrerPolicy="no-referrer"
-          onLoad={(e) => {
-            (e.target as HTMLImageElement).classList.remove('opacity-0');
-          }}
         />
       </motion.div>
     </>
@@ -451,11 +449,37 @@ export default function App() {
   const [children, setChildren] = useState<Child[]>(CHILDREN_DATA);
   const [feedback, setFeedback] = useState<{ message: string, type: 'best' | 'ok' | 'poor' } | null>(null);
   const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
   
   // Phase 2 specific state
   const [p2Task, setP2Task] = useState(1);
   const [highlightedWords, setHighlightedWords] = useState<number[]>([]);
   const [p2Finished, setP2Finished] = useState(false);
+
+  // Preload feedback images on mount
+  useEffect(() => {
+    const preloadImages = async () => {
+      const images = [
+        FEEDBACK_IMAGES.best,
+        FEEDBACK_IMAGES.ok,
+        FEEDBACK_IMAGES.poor
+      ];
+      
+      const preloadPromises = images.map(src => {
+        return new Promise<void>((resolve) => {
+          const img = new Image();
+          img.src = src;
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        });
+      });
+      
+      await Promise.all(preloadPromises);
+      setImagesLoaded(true);
+    };
+    
+    preloadImages();
+  }, []);
 
   // Shuffle choices for the current scene
   const shuffledChoices = useMemo(() => {
@@ -1707,6 +1731,18 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col font-sans overflow-hidden bg-stone-50">
+      {!imagesLoaded && (
+        <div className="fixed inset-0 z-[1000] bg-stone-50 flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center gap-4"
+          >
+            <div className="w-12 h-12 border-4 border-brand-green border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-stone-500 text-sm font-medium">Loading...</p>
+          </motion.div>
+        </div>
+      )}
       <AnimatePresence>
         {feedback && (
           <motion.div key={`visual-${feedback.message}-${feedback.type}`}>
