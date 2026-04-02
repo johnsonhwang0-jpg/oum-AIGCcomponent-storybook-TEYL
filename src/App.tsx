@@ -959,7 +959,27 @@ export default function App() {
           </div>
 
           {/* Right Column: Instructions & Choices */}
-          <div className="space-y-4 bg-white/50 p-4 rounded-[2rem] border border-stone-100 shadow-sm">
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="space-y-4 bg-white/50 p-4 rounded-[2rem] border border-stone-100 shadow-sm relative"
+          >
+            <motion.div
+              animate={{ 
+                boxShadow: [
+                  '0 4px 20px rgba(0,0,0,0.05)',
+                  '0 8px 30px rgba(0,107,43,0.15)',
+                  '0 4px 20px rgba(0,0,0,0.05)'
+                ]
+              }}
+              transition={{ 
+                duration: 3, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+              className="absolute inset-0 rounded-[2rem] pointer-events-none border-2 border-brand-green/20"
+            />
             <div className="bg-white p-5 rounded-[1.5rem] card-shadow border border-stone-100">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-brand-mint flex items-center justify-center text-brand-green shrink-0">
@@ -1075,7 +1095,7 @@ export default function App() {
                 {scene.id === '1-4' && "Emphasize the variety of foods. This is a great moment for vocabulary expansion."}
               </p>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -1222,7 +1242,27 @@ export default function App() {
           </div>
 
           {/* Right Column: Instructions & Choices */}
-          <div className="space-y-4 bg-white/50 p-4 rounded-[2rem] border border-stone-100 shadow-sm">
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="space-y-4 bg-white/50 p-4 rounded-[2rem] border border-stone-100 shadow-sm relative"
+          >
+            <motion.div
+              animate={{ 
+                boxShadow: [
+                  '0 4px 20px rgba(0,0,0,0.05)',
+                  '0 8px 30px rgba(0,107,43,0.15)',
+                  '0 4px 20px rgba(0,0,0,0.05)'
+                ]
+              }}
+              transition={{ 
+                duration: 3, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+              className="absolute inset-0 rounded-[2rem] pointer-events-none border-2 border-brand-green/20"
+            />
             <div className="bg-white p-5 rounded-[1.5rem] card-shadow border border-stone-100">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-brand-mint flex items-center justify-center text-brand-green shrink-0">
@@ -1357,7 +1397,7 @@ export default function App() {
                 {p2Task === 3 && "Use your finger or a pointer to show how we read from left to right."}
               </p>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -1538,7 +1578,27 @@ export default function App() {
           </div>
 
           {/* Right Column: Instructions & Choices */}
-          <div className="space-y-4 bg-white/50 p-4 rounded-[2rem] border border-stone-100 shadow-sm">
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="space-y-4 bg-white/50 p-4 rounded-[2rem] border border-stone-100 shadow-sm relative"
+          >
+            <motion.div
+              animate={{ 
+                boxShadow: [
+                  '0 4px 20px rgba(0,0,0,0.05)',
+                  '0 8px 30px rgba(0,107,43,0.15)',
+                  '0 4px 20px rgba(0,0,0,0.05)'
+                ]
+              }}
+              transition={{ 
+                duration: 3, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+              className="absolute inset-0 rounded-[2rem] pointer-events-none border-2 border-brand-green/20"
+            />
             <div className="bg-white p-5 rounded-[1.5rem] card-shadow border border-stone-100">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-8 h-8 rounded-lg bg-brand-mint flex items-center justify-center text-brand-green shrink-0">
@@ -1589,7 +1649,7 @@ export default function App() {
                 {getPerformanceTip()}
               </p>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     );
