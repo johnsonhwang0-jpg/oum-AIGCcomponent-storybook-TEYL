@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/storybook_classroom/(.*)",
+      "destination": "/$1"
+    }
+  ]
+}
