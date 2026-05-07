@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   BookOpen, 
@@ -41,9 +41,172 @@ const FEEDBACK_IMAGES = {
   poor: feedbackBad
 };
 
+type FeedbackType = 'best' | 'ok' | 'poor';
+
+const FEEDBACK_META: Record<FeedbackType, {
+  title: string;
+  reasonLabel: string;
+  tone: string;
+  detailBg: string;
+  detailText: string;
+  detailBorder: string;
+}> = {
+  best: {
+    title: 'Strong choice',
+    reasonLabel: 'Why this works well',
+    tone: 'This response actively engages children and supports the reading goal.',
+    detailBg: 'bg-brand-green/10',
+    detailText: 'text-brand-green',
+    detailBorder: 'border-brand-green/20'
+  },
+  ok: {
+    title: 'Okay, but limited',
+    reasonLabel: 'Why this is only okay',
+    tone: 'This response can work, but it gives children less thinking or participation.',
+    detailBg: 'bg-amber-100/70',
+    detailText: 'text-amber-700',
+    detailBorder: 'border-amber-200'
+  },
+  poor: {
+    title: 'Needs improvement',
+    reasonLabel: 'Why this is not recommended',
+    tone: 'This response misses the learning opportunity or reduces engagement.',
+    detailBg: 'bg-red-50',
+    detailText: 'text-brand-red',
+    detailBorder: 'border-brand-red/20'
+  }
+};
+
+const getFeedbackTypeFromPoints = (points: number): FeedbackType => {
+  if (points >= 3) return 'best';
+  if (points > 0) return 'ok';
+  return 'poor';
+};
+
+const FeedbackReason = ({ rating, explanation, muted = false }: { rating: FeedbackType; explanation: string; muted?: boolean }) => {
+  const meta = FEEDBACK_META[rating];
+
+  return (
+    <div className={`rounded-lg border px-2.5 py-2 ${meta.detailBg} ${meta.detailBorder} ${muted ? 'opacity-60 grayscale-[0.35]' : ''}`}>
+      <div className={`text-[8px] font-black uppercase tracking-wider mb-1 ${meta.detailText}`}>{meta.reasonLabel}</div>
+      <p className={`text-[9px] leading-tight ${muted ? 'text-stone-400' : 'text-stone-600'}`}>{explanation}</p>
+    </div>
+  );
+};
+
+type ChoiceFeedback = {
+  choiceId: string;
+  message: string;
+  description: string;
+  type: FeedbackType;
+};
+
+type TransitionCard = {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+};
+
+const FeedbackSideCard = ({ feedback, onClose }: { feedback: ChoiceFeedback; onClose: () => void }) => {
+  const meta = FEEDBACK_META[feedback.type];
+  const accents = {
+    best: 'border-green-300 bg-green-600 shadow-[0_20px_70px_rgba(0,107,43,0.28)]',
+    ok: 'border-amber-300 bg-amber-500 shadow-[0_20px_70px_rgba(245,158,11,0.28)]',
+    poor: 'border-red-300 bg-red-600 shadow-[0_20px_70px_rgba(220,38,38,0.28)]'
+  };
+  const arrowColors = {
+    best: 'bg-green-600 border-green-300',
+    ok: 'bg-amber-500 border-amber-300',
+    poor: 'bg-red-600 border-red-300'
+  };
+
+  const card = (
+    <div className={`relative rounded-2xl border-2 p-4 ${accents[feedback.type]}`}>
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-3 top-3 w-6 h-6 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors flex items-center justify-center text-sm font-black"
+        aria-label="Close feedback"
+      >
+        ×
+      </button>
+      <div className="inline-flex items-center rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wider mb-2 bg-white/20 text-white border border-white/25">
+        {meta.reasonLabel}
+      </div>
+      <h4 className="text-sm font-black text-white pr-8 mb-1">{feedback.message}</h4>
+      <p className="text-[11px] leading-relaxed text-white/90 font-semibold">{feedback.description}</p>
+    </div>
+  );
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0, x: 16, scale: 0.96 }}
+        animate={{ opacity: 1, x: 0, scale: 1 }}
+        exit={{ opacity: 0, x: 16, scale: 0.96 }}
+        className="hidden lg:block absolute right-[calc(100%+0.9rem)] top-1/2 -translate-y-1/2 z-[80] w-[330px] max-w-[42vw]"
+      >
+        {card}
+        <div className={`absolute right-[-7px] top-1/2 -translate-y-1/2 w-3.5 h-3.5 border-r-2 border-t-2 rotate-45 ${arrowColors[feedback.type]}`} />
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -6 }}
+        className="lg:hidden mt-2 z-[80] relative"
+      >
+        {card}
+      </motion.div>
+    </>
+  );
+};
+
+const TransitionOverlay = ({ card, onContinue }: { card: TransitionCard; onContinue: () => void }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.18 }}
+    className="fixed inset-0 z-[90] flex items-center justify-center bg-brand-cream/80 backdrop-blur-md"
+  >
+    <motion.div
+      initial={{ y: 28, opacity: 0, scale: 0.96 }}
+      animate={{ y: 0, opacity: 1, scale: 1 }}
+      exit={{ y: -18, opacity: 0, scale: 0.98 }}
+      transition={{ type: 'spring', damping: 22, stiffness: 180 }}
+      className="relative w-[min(560px,calc(100vw-48px))] overflow-hidden rounded-[2rem] bg-white border border-brand-green/15 shadow-[0_30px_90px_rgba(0,107,43,0.18)] p-7 text-center"
+    >
+      <div className="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-brand-green via-brand-yellow to-brand-red" />
+      <div className="absolute -left-16 -top-16 w-36 h-36 rounded-full bg-brand-green/10 blur-2xl" />
+      <div className="absolute -right-16 -bottom-16 w-40 h-40 rounded-full bg-brand-yellow/20 blur-2xl" />
+      <div className="relative z-10 flex flex-col items-center">
+        <motion.div
+          animate={{ rotate: [0, -4, 4, 0], scale: [1, 1.05, 1] }}
+          transition={{ duration: 1.1, repeat: Infinity, repeatType: 'reverse' }}
+          className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-mint text-4xl shadow-inner"
+        >
+          {card.icon}
+        </motion.div>
+        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.35em] text-brand-green">{card.eyebrow}</p>
+        <h3 className="text-2xl md:text-3xl font-black text-stone-800 tracking-tight font-display">{card.title}</h3>
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-stone-500 font-semibold">{card.subtitle}</p>
+        <button
+          type="button"
+          onClick={onContinue}
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-brand-green px-7 py-3 text-sm font-black text-white shadow-lg transition-all hover:bg-brand-green/90 hover:shadow-xl"
+        >
+          Continue
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
 // --- Components ---
 
-const FeedbackVisual = ({ type }: { type: 'best' | 'ok' | 'poor' }) => {
+const FeedbackVisual = ({ type }: { type: FeedbackType }) => {
   const getBorderColor = () => {
     switch (type) {
       case 'best': return 'from-green-500/50 to-transparent';
@@ -228,34 +391,6 @@ const FeedbackVisual = ({ type }: { type: 'best' | 'ok' | 'poor' }) => {
         />
       </motion.div>
     </>
-  );
-};
-
-const FeedbackToast = ({ message, type }: { message: string, type: 'best' | 'ok' | 'poor' }) => {
-  const colors = {
-    best: 'bg-green-500',
-    ok: 'bg-orange-500',
-    poor: 'bg-red-500'
-  };
-  const icons = {
-    best: '⭐',
-    ok: '⚠',
-    poor: '✗'
-  };
-
-  return (
-    <motion.div
-      initial={{ x: 100, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 100, opacity: 0 }}
-      className={`fixed bottom-8 right-8 px-6 py-3 rounded-2xl text-white font-bold shadow-2xl z-50 flex items-center gap-3 border-2 border-white/20 backdrop-blur-md ${colors[type]}`}
-    >
-      <span className="text-xl">{icons[type]}</span>
-      <div className="flex flex-col">
-        <span className="text-[10px] opacity-80 uppercase tracking-widest font-black">Feedback</span>
-        <span className="text-sm">{message}</span>
-      </div>
-    </motion.div>
   );
 };
 
@@ -447,9 +582,13 @@ export default function App() {
     storytelling: 0
   });
   const [children, setChildren] = useState<Child[]>(CHILDREN_DATA);
-  const [feedback, setFeedback] = useState<{ message: string, type: 'best' | 'ok' | 'poor' } | null>(null);
+  const [visualFeedback, setVisualFeedback] = useState<FeedbackType | null>(null);
+  const [choiceFeedback, setChoiceFeedback] = useState<ChoiceFeedback | null>(null);
+  const [transitionCard, setTransitionCard] = useState<TransitionCard | null>(null);
   const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
   const [imagesLoaded, setImagesLoaded] = useState(false);
+  const visualFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTransitionAction = useRef<(() => void) | null>(null);
   
   // Phase 2 specific state
   const [p2Task, setP2Task] = useState(1);
@@ -479,6 +618,12 @@ export default function App() {
     };
     
     preloadImages();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (visualFeedbackTimer.current) clearTimeout(visualFeedbackTimer.current);
+    };
   }, []);
 
   // Shuffle choices for the current scene
@@ -512,6 +657,86 @@ export default function App() {
     setChildren(prev => prev.map(c => ({ ...c, expression: 'neutral', isRaisingHand: false })));
   };
 
+  const showChoiceFeedback = (choiceId: string, type: FeedbackType, description: string) => {
+    const meta = FEEDBACK_META[type];
+    if (visualFeedbackTimer.current) clearTimeout(visualFeedbackTimer.current);
+    setVisualFeedback(type);
+    setChoiceFeedback({ choiceId, message: meta.title, description, type });
+    visualFeedbackTimer.current = setTimeout(() => setVisualFeedback(null), 2100);
+  };
+
+  const clearChoiceFeedback = () => {
+    if (visualFeedbackTimer.current) clearTimeout(visualFeedbackTimer.current);
+    setChoiceFeedback(null);
+    setVisualFeedback(null);
+  };
+
+  const getPhaseIntro = (targetPhase: Phase): TransitionCard => {
+    switch (targetPhase) {
+      case 'phase1':
+        return {
+          eyebrow: 'Module 1',
+          title: 'Ask Better Questions After Each Page',
+          subtitle: 'Practice how to use questions after reading a page to guide children into prediction, response, and interaction.',
+          icon: '📖'
+        };
+      case 'phase2':
+        return {
+          eyebrow: 'Module 2',
+          title: 'Guide Children During Shared Reading',
+          subtitle: 'Learn what to do when reading one book together so children can follow print, notice patterns, and read with confidence.',
+          icon: '👀'
+        };
+      case 'phase3':
+        return {
+          eyebrow: 'Module 3',
+          title: 'Tell Stories With Voice and Body',
+          subtitle: 'Explore how intonation, pitch, volume, gestures, and visual support make English storytelling clearer and more engaging.',
+          icon: '🎭'
+        };
+      case 'report':
+        return {
+          eyebrow: 'Module 4',
+          title: 'Review Your Teaching Report',
+          subtitle: 'Wrap up with a report that summarizes how your choices supported interaction, shared reading, and storytelling skills.',
+          icon: '🏆'
+        };
+      default:
+        return {
+          eyebrow: 'Welcome',
+          title: 'Back to the Starting Point',
+          subtitle: 'Review the simulation entry point before beginning again.',
+          icon: '🐛'
+        };
+    }
+  };
+
+  const playTransition = (card: TransitionCard, action: () => void) => {
+    if (transitionCard) return;
+    pendingTransitionAction.current = action;
+    setTransitionCard(card);
+  };
+
+  const continueTransition = () => {
+    const action = pendingTransitionAction.current;
+    pendingTransitionAction.current = null;
+    setTransitionCard(null);
+    action?.();
+  };
+
+  const startPhase = (targetPhase: Phase) => {
+    playTransition(getPhaseIntro(targetPhase), () => {
+      clearChoiceFeedback();
+      setSelectedChoiceId(null);
+      resetChildren();
+      setPhase(targetPhase);
+      setSceneIndex(0);
+      setP2Task(1);
+      setP2Finished(false);
+      setHighlightedWords([]);
+    });
+  };
+
   const handleChoice = (choice: Choice, scene: Scene) => {
     if (selectedChoiceId) return;
     
@@ -523,10 +748,8 @@ export default function App() {
       [scene.category]: (prev[scene.category] as number) + choice.points
     }));
 
-    // Update feedback
-    const toastMsg = choice.rating === 'best' ? 'Excellent choice!' : choice.rating === 'ok' ? 'Acceptable' : 'Not recommended';
-    setFeedback({ message: toastMsg, type: choice.rating });
-    setTimeout(() => setFeedback(null), 2100); // Reduced duration to 70%
+    const meta = FEEDBACK_META[choice.rating];
+    showChoiceFeedback(choice.id, choice.rating, `${meta.tone} ${choice.explanation}`);
 
     // Update children reactions
     setChildren(prev => prev.map(c => ({
@@ -537,37 +760,58 @@ export default function App() {
   };
 
   const nextScene = () => {
-    setSelectedChoiceId(null);
-    resetChildren();
-    
-    if (phase === 'phase1') {
-      if (sceneIndex < PHASE1_SCENES.length - 1) {
-        setSceneIndex(prev => prev + 1);
-      } else {
-        setPhase('phase2');
-        setSceneIndex(0);
-        setP2Task(1);
+    const advance = () => {
+      setSelectedChoiceId(null);
+      clearChoiceFeedback();
+      resetChildren();
+      
+      if (phase === 'phase1') {
+        if (sceneIndex < PHASE1_SCENES.length - 1) {
+          setSceneIndex(prev => prev + 1);
+        } else {
+          setPhase('phase2');
+          setSceneIndex(0);
+          setP2Task(1);
+        }
+      } else if (phase === 'phase2') {
+        if (p2Task < 3) {
+          setP2Task(prev => prev + 1);
+          setP2Finished(false);
+          setHighlightedWords([]);
+        } else {
+          setPhase('phase3');
+          setSceneIndex(0);
+        }
+      } else if (phase === 'phase3') {
+        if (sceneIndex < PHASE3_SCENES.length - 1) {
+          setSceneIndex(prev => prev + 1);
+        } else {
+          setPhase('report');
+        }
       }
-    } else if (phase === 'phase2') {
-      if (p2Task < 3) {
-        setP2Task(prev => prev + 1);
-        setP2Finished(false);
-        setHighlightedWords([]);
-      } else {
-        setPhase('phase3');
-        setSceneIndex(0);
-      }
-    } else if (phase === 'phase3') {
-      if (sceneIndex < PHASE3_SCENES.length - 1) {
-        setSceneIndex(prev => prev + 1);
-      } else {
-        setPhase('report');
-      }
+    };
+
+    if (phase === 'phase1' && sceneIndex === PHASE1_SCENES.length - 1) {
+      playTransition(getPhaseIntro('phase2'), advance);
+      return;
     }
+
+    if (phase === 'phase2' && p2Task === 3) {
+      playTransition(getPhaseIntro('phase3'), advance);
+      return;
+    }
+
+    if (phase === 'phase3' && sceneIndex === PHASE3_SCENES.length - 1) {
+      playTransition(getPhaseIntro('report'), advance);
+      return;
+    }
+
+    advance();
   };
 
   const prevScene = () => {
     setSelectedChoiceId(null);
+    clearChoiceFeedback();
     resetChildren();
 
     if (phase === 'phase1') {
@@ -612,27 +856,28 @@ export default function App() {
     const ratio = correctCount / totalCorrect;
     
     let pts = 1;
-    let type: 'best' | 'ok' | 'poor' = 'poor';
+    let type: FeedbackType = 'poor';
     if (ratio >= 0.7) { pts = 3; type = 'best'; }
     else if (ratio >= 0.4) { pts = 2; type = 'ok'; }
 
     setScore(prev => ({ ...prev, shared: prev.shared + pts }));
     setP2Finished(true);
-    
-    const toastMsg = type === 'best' ? 'Excellent identification!' : type === 'ok' ? 'Good effort' : 'Keep practicing';
-    setFeedback({ message: toastMsg, type });
-    setTimeout(() => setFeedback(null), 2100); // Reduced duration to 70%
+
+    if (visualFeedbackTimer.current) clearTimeout(visualFeedbackTimer.current);
+    setVisualFeedback(type);
+    setChoiceFeedback(null);
+    visualFeedbackTimer.current = setTimeout(() => setVisualFeedback(null), 2100);
   };
 
-  const handleP2Choice = (choice: { text: string, pts: number, id: string }) => {
+  const handleP2Choice = (choice: { text: string, pts: number, id: string, explanation: string }) => {
     if (selectedChoiceId) return;
     setSelectedChoiceId(choice.id);
     setScore(prev => ({ ...prev, shared: prev.shared + choice.pts }));
     setP2Finished(true);
     
-    const toastMsg = choice.pts > 0 ? 'Excellent choice!' : 'Not recommended';
-    setFeedback({ message: toastMsg, type: choice.pts > 0 ? 'best' : 'poor' });
-    setTimeout(() => setFeedback(null), 2100); // Reduced duration to 70%
+    const type = getFeedbackTypeFromPoints(choice.pts);
+    const meta = FEEDBACK_META[type];
+    showChoiceFeedback(choice.id, type, `${meta.tone} ${choice.explanation}`);
   };
 
   // --- Render Helpers ---
@@ -672,7 +917,7 @@ export default function App() {
               ease: "easeInOut" 
             }}
             className="group w-40 h-56 bg-brand-red rounded-r-[2rem] rounded-l-md shadow-[20px_20px_40px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center cursor-pointer relative preserve-3d perspective-1000 z-20"
-            onClick={() => setPhase('phase1')}
+            onClick={() => startPhase('phase1')}
           >
             {/* Pages Layer (Behind) */}
             <div 
@@ -750,7 +995,7 @@ export default function App() {
               boxShadow: "0 10px 25px -5px rgba(0, 107, 43, 0.4)"
             }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setPhase('phase1')}
+            onClick={() => startPhase('phase1')}
             className="bg-brand-green text-white px-10 py-4 rounded-full font-bold text-base shadow-xl transition-all duration-300 flex items-center gap-3 mx-auto group"
           >
             Start Simulation
@@ -788,9 +1033,9 @@ export default function App() {
             <button
               key={step.id}
               onClick={() => {
+                if (step.id === phase) return;
                 if (step.id === 'report' && currentTotalScore < 5) return;
-                setPhase(step.id as Phase);
-                setSceneIndex(0);
+                startPhase(step.id as Phase);
               }}
               className={`text-[10px] font-bold tracking-[0.1em] transition-all relative py-1.5 ${
                 isActive ? 'text-brand-green' : 'text-stone-400 hover:text-stone-600'
@@ -848,12 +1093,17 @@ export default function App() {
         const isBad = choice.rating === 'poor';
         
         return (
+          <div key={choice.id} className="relative">
+            <AnimatePresence>
+              {choiceFeedback?.choiceId === choice.id && (
+                <FeedbackSideCard feedback={choiceFeedback} onClose={() => setChoiceFeedback(null)} />
+              )}
+            </AnimatePresence>
           <motion.button
-            key={choice.id}
             disabled={showResults}
             whileHover={!showResults ? { x: 2 } : {}}
             onClick={() => handleChoice(choice, scene)}
-            className={`p-3.5 rounded-xl text-left transition-all relative flex items-center gap-3 border-2 ${
+            className={`w-full p-3.5 rounded-xl text-left transition-all relative flex items-center gap-3 border-2 ${
               showResults 
                 ? isSelected 
                   ? isBest ? 'bg-brand-mint border-brand-green ring-2 ring-brand-green/20' : isGood ? 'bg-amber-50 border-brand-yellow ring-2 ring-brand-yellow/20' : 'bg-red-50 border-brand-red ring-2 ring-brand-red/20'
@@ -895,11 +1145,12 @@ export default function App() {
                       </span>
                     )}
                   </div>
-                  <p className={`text-[9px] italic leading-tight ${showResults && !isSelected && !isBest ? 'text-stone-400' : 'text-stone-500'}`}>{choice.explanation}</p>
+                  <FeedbackReason rating={choice.rating} explanation={choice.explanation} muted={showResults && !isSelected && !isBest} />
                 </div>
               )}
             </div>
           </motion.button>
+          </div>
         );
       })}
     </div>
@@ -1019,11 +1270,16 @@ export default function App() {
                   const isBad = choice.rating === 'poor';
 
                   return (
+                    <div key={choice.id} className="relative">
+                      <AnimatePresence>
+                        {choiceFeedback?.choiceId === choice.id && (
+                          <FeedbackSideCard feedback={choiceFeedback} onClose={() => setChoiceFeedback(null)} />
+                        )}
+                      </AnimatePresence>
                     <motion.button
-                      key={choice.id}
                       disabled={showResults}
                       onClick={() => handleChoice(choice, scene)}
-                      className={`p-4 rounded-[1.5rem] text-left transition-all border-2 relative overflow-hidden ${
+                      className={`w-full p-4 rounded-[1.5rem] text-left transition-all border-2 relative overflow-hidden ${
                         showResults 
                           ? isSelected 
                             ? isBest ? 'bg-brand-mint border-brand-green ring-2 ring-brand-green/20' : isGood ? 'bg-amber-50 border-brand-yellow ring-2 ring-brand-yellow/20' : 'bg-red-50 border-brand-red ring-2 ring-brand-red/20'
@@ -1056,10 +1312,11 @@ export default function App() {
                               </span>
                             )}
                           </div>
-                          <p className={`text-[9px] mt-0.5 italic leading-tight ${showResults && !isSelected && !isBest ? 'text-stone-400' : 'text-stone-500'}`}>{choice.explanation}</p>
+                          <FeedbackReason rating={choice.rating} explanation={choice.explanation} muted={showResults && !isSelected && !isBest} />
                         </div>
                       )}
                     </motion.button>
+                    </div>
                   );
                 })}
               </div>
@@ -1319,13 +1576,19 @@ export default function App() {
                     const isSelected = selectedChoiceId === opt.id;
                     const showResults = p2Finished;
                     const isBest = opt.pts > 0;
+                    const feedbackType = getFeedbackTypeFromPoints(opt.pts);
 
                     return (
+                      <div key={opt.id} className="relative">
+                        <AnimatePresence>
+                          {choiceFeedback?.choiceId === opt.id && (
+                            <FeedbackSideCard feedback={choiceFeedback} onClose={() => setChoiceFeedback(null)} />
+                          )}
+                        </AnimatePresence>
                       <button
-                        key={opt.id}
                         disabled={showResults}
                         onClick={() => handleP2Choice(opt)}
-                        className={`p-4 rounded-xl border-2 text-left font-bold transition-all text-xs relative overflow-hidden ${
+                        className={`w-full p-4 rounded-xl border-2 text-left font-bold transition-all text-xs relative overflow-hidden ${
                           showResults 
                             ? isSelected 
                               ? isBest ? 'bg-brand-mint border-brand-green ring-2 ring-brand-green/20' : 'bg-red-50 border-brand-red ring-2 ring-brand-red/20'
@@ -1358,10 +1621,11 @@ export default function App() {
                                 </span>
                               )}
                             </div>
-                            <p className={`text-[9px] mt-0.5 italic leading-tight ${showResults && !isSelected && !isBest ? 'text-stone-400' : 'text-stone-500'}`}>{opt.explanation}</p>
+                            <FeedbackReason rating={feedbackType} explanation={opt.explanation} muted={showResults && !isSelected && !isBest} />
                           </div>
                         )}
                       </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -1804,16 +2068,14 @@ export default function App() {
         </div>
       )}
       <AnimatePresence>
-        {feedback && (
-          <motion.div key={`visual-${feedback.message}-${feedback.type}`}>
-            <FeedbackVisual type={feedback.type} />
+        {visualFeedback && (
+          <motion.div key={`visual-${visualFeedback}`}>
+            <FeedbackVisual type={visualFeedback} />
           </motion.div>
         )}
-        {feedback && (
-          <motion.div key={`toast-${feedback.message}-${feedback.type}`}>
-            <FeedbackToast message={feedback.message} type={feedback.type} />
-          </motion.div>
-        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {transitionCard && <TransitionOverlay card={transitionCard} onContinue={continueTransition} />}
       </AnimatePresence>
 
       {phase === 'welcome' ? renderWelcome() : (
